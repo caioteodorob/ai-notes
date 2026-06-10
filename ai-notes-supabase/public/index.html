@@ -1,392 +1,82 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Notas</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
-  :root {
-    --bg: #f8f8f6;
-    --surface: #ffffff;
-    --border: rgba(0,0,0,0.08);
-    --border-md: rgba(0,0,0,0.14);
-    --text-1: #1a1a18;
-    --text-2: #6b6b66;
-    --text-3: #a0a09a;
-    --r-md: 8px;
-    --r-lg: 12px;
+  const SUPA_URL    = process.env.SUPABASE_URL;
+  const SUPA_KEY    = process.env.SUPABASE_ANON_KEY;
+  const SUPA_SECRET = process.env.SUPABASE_SECRET_KEY;
+
+  const readHeaders = {
+    'Content-Type': 'application/json',
+    'apikey': SUPA_KEY,
+    'Authorization': `Bearer ${SUPA_KEY}`,
+  };
+
+  const writeHeaders = {
+    'Content-Type': 'application/json',
+    'apikey': SUPA_SECRET,
+    'Authorization': `Bearer ${SUPA_SECRET}`,
+  };
+
+  if (req.method === 'GET') {
+    const r = await fetch(`${SUPA_URL}/rest/v1/notes?order=created_at.desc`, { headers: readHeaders });
+    const data = await r.json();
+    return res.status(200).json(data);
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #141412;
-      --surface: #1e1e1b;
-      --border: rgba(255,255,255,0.08);
-      --border-md: rgba(255,255,255,0.15);
-      --text-1: #f0f0ec;
-      --text-2: #a0a09a;
-      --text-3: #5a5a54;
-    }
-  }
+  if (req.method === 'POST') {
+    const { title, content, tags, color, autor } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'title e content obrigatórios' });
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text-1);
-    min-height: 100vh;
-    padding: 2rem 1rem 4rem;
-  }
-
-  .wrap { max-width: 880px; margin: 0 auto; }
-
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.75rem;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  header h1 { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
-  #count { font-size: 12px; color: var(--text-3); }
-
-  .form-card {
-    background: var(--surface);
-    border: 0.5px solid var(--border-md);
-    border-radius: var(--r-lg);
-    padding: 1.1rem 1.2rem;
-    margin-bottom: 1.75rem;
-    display: grid;
-    gap: 8px;
-  }
-
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-
-  input, textarea, select {
-    font-family: inherit;
-    font-size: 13px;
-    padding: 9px 11px;
-    background: var(--bg);
-    color: var(--text-1);
-    border: 0.5px solid var(--border-md);
-    border-radius: var(--r-md);
-    outline: none;
-    transition: border-color .15s;
-    width: 100%;
-  }
-  input:focus, textarea:focus, select:focus { border-color: var(--text-3); }
-  input::placeholder, textarea::placeholder { color: var(--text-3); }
-  input:disabled, textarea:disabled { opacity: .5; }
-
-  textarea { min-height: 80px; resize: vertical; }
-
-  select { cursor: pointer; }
-
-  .color-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
-  }
-
-  #add-btn {
-    padding: 10px 16px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-1);
-    background: var(--surface);
-    border: 0.5px solid var(--border-md);
-    border-radius: var(--r-md);
-    cursor: pointer;
-    transition: background .15s;
-    width: 100%;
-  }
-  #add-btn:hover { background: var(--bg); }
-  #add-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-  .sync-label { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
-  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 10px;
-  }
-
-  .card {
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: .95rem 1.05rem;
-    animation: up .22s ease;
-  }
-
-  @keyframes up {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .bar { height: 3px; border-radius: 99px; margin-bottom: 9px; }
-
-  .card-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-
-  .card-title { font-size: 13px; font-weight: 500; line-height: 1.4; }
-
-  .del {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-3); font-size: 13px; padding: 0;
-    opacity: .55; transition: opacity .15s; flex-shrink: 0;
-  }
-  .del:hover { opacity: 1; }
-
-  .card-autor { font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
-
-  .card-body {
-    font-size: 12px;
-    color: var(--text-2);
-    line-height: 1.65;
-    margin-bottom: 9px;
-  }
-
-  .card-foot {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px;
-  }
-
-  .tags { display: flex; gap: 3px; flex-wrap: wrap; }
-
-  .tag {
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 99px;
-    font-weight: 500;
-  }
-
-  .time { font-size: 10px; color: var(--text-3); }
-
-  .empty {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: var(--text-3);
-    font-size: 13px;
-  }
-
-  .toast {
-    position: fixed;
-    bottom: 1.25rem; right: 1.25rem;
-    background: var(--text-1);
-    color: var(--bg);
-    font-size: 12px;
-    padding: 7px 13px;
-    border-radius: var(--r-md);
-    opacity: 0;
-    transition: opacity .2s;
-    pointer-events: none;
-    z-index: 99;
-  }
-  .toast.show { opacity: 1; }
-
-  .form-label {
-    font-size: 11px;
-    color: var(--text-3);
-    margin-bottom: 2px;
-  }
-
-  .field { display: flex; flex-direction: column; gap: 3px; }
-</style>
-</head>
-<body>
-<div class="wrap">
-
-  <header>
-    <h1>Notas</h1>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span class="sync-label"><span class="sync-dot"></span>ao vivo</span>
-      <span id="count"></span>
-    </div>
-  </header>
-
-  <div class="form-card">
-    <div class="form-row">
-      <div class="field">
-        <span class="form-label">Título</span>
-        <input id="f-title" type="text" placeholder="Título da nota" />
-      </div>
-      <div class="field">
-        <span class="form-label">Seu nome</span>
-        <input id="f-autor" type="text" placeholder="Anônimo" />
-      </div>
-    </div>
-
-    <div class="field">
-      <span class="form-label">Conteúdo</span>
-      <textarea id="f-content" placeholder="Escreva o conteúdo da nota..."></textarea>
-    </div>
-
-    <div class="form-row">
-      <div class="field">
-        <span class="form-label">Tags (separadas por vírgula)</span>
-        <input id="f-tags" type="text" placeholder="ex: reunião, urgente, bi" />
-      </div>
-      <div class="field">
-        <span class="form-label">Cor</span>
-        <select id="f-color">
-          <option value="blue">🔵 Azul</option>
-          <option value="teal">🟢 Verde água</option>
-          <option value="green">🌿 Verde</option>
-          <option value="amber">🟡 Âmbar</option>
-          <option value="coral">🟠 Coral</option>
-          <option value="pink">🩷 Rosa</option>
-          <option value="purple">🟣 Roxo</option>
-        </select>
-      </div>
-    </div>
-
-    <button id="add-btn" onclick="addNote()">+ Salvar nota</button>
-  </div>
-
-  <div class="grid" id="grid"></div>
-  <div class="empty" id="empty" style="display:none">Nenhuma nota ainda. Adicione a primeira.</div>
-
-</div>
-<div class="toast" id="toast"></div>
-
-<script>
-const COLORS = {
-  blue:   { bar:'#378ADD', tagBg:'#E6F1FB', tagColor:'#0C447C' },
-  teal:   { bar:'#1D9E75', tagBg:'#E1F5EE', tagColor:'#085041' },
-  amber:  { bar:'#BA7517', tagBg:'#FAEEDA', tagColor:'#633806' },
-  coral:  { bar:'#D85A30', tagBg:'#FAECE7', tagColor:'#4A1B0C' },
-  purple: { bar:'#534AB7', tagBg:'#EEEDFE', tagColor:'#26215C' },
-  pink:   { bar:'#D4537E', tagBg:'#FBEAF0', tagColor:'#4B1528' },
-  green:  { bar:'#639922', tagBg:'#EAF3DE', tagColor:'#173404' },
-};
-
-let notes = [];
-
-// Salva nome no localStorage
-const autorInput = document.getElementById('f-autor');
-autorInput.value = localStorage.getItem('notes-autor') || '';
-autorInput.addEventListener('change', () => localStorage.setItem('notes-autor', autorInput.value));
-
-async function load() {
-  try {
-    const r = await fetch('/api/note');
-    const fresh = await r.json();
-    if (JSON.stringify(fresh) !== JSON.stringify(notes)) {
-      notes = fresh;
-      render();
-    }
-  } catch {}
-}
-
-async function addNote() {
-  const title   = document.getElementById('f-title').value.trim();
-  const content = document.getElementById('f-content').value.trim();
-  const tagsRaw = document.getElementById('f-tags').value.trim();
-  const color   = document.getElementById('f-color').value;
-  const autor   = autorInput.value.trim() || 'Anônimo';
-
-  if (!title) { showToast('Preencha o título'); return; }
-  if (!content) { showToast('Preencha o conteúdo'); return; }
-
-  const btn = document.getElementById('add-btn');
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
-
-  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
-
-  try {
-    const r = await fetch('/api/note', {
+    const dbRes = await fetch(`${SUPA_URL}/rest/v1/notes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content, tags, color, autor }),
+      headers: { ...writeHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({
+        title:    title.trim(),
+        summary:  content.trim(),
+        tags:     Array.isArray(tags) ? tags.slice(0, 4) : [],
+        color:    color || 'blue',
+        original: content.trim(),
+        autor:    autor || 'Anônimo',
+      }),
     });
-    const note = await r.json();
-    notes.unshift(note);
 
-    document.getElementById('f-title').value = '';
-    document.getElementById('f-content').value = '';
-    document.getElementById('f-tags').value = '';
-
-    showToast('Nota salva');
-    render();
-  } catch {
-    showToast('Erro ao salvar');
+    const saved = await dbRes.json();
+    return res.status(200).json(saved[0]);
   }
 
-  btn.disabled = false;
-  btn.textContent = '+ Salvar nota';
-}
+  if (req.method === 'PATCH') {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'id obrigatório' });
 
-async function deleteNote(id) {
-  notes = notes.filter(n => n.id !== id);
-  render();
-  await fetch(`/api/note?id=${id}`, { method: 'DELETE' });
-  showToast('Nota removida');
-}
+    const { title, summary, tags, color, original } = req.body;
 
-function render() {
-  const grid  = document.getElementById('grid');
-  const empty = document.getElementById('empty');
-  const count = document.getElementById('count');
+    const dbRes = await fetch(`${SUPA_URL}/rest/v1/notes?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...writeHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({
+        ...(title    !== undefined && { title }),
+        ...(summary  !== undefined && { summary }),
+        ...(tags     !== undefined && { tags: Array.isArray(tags) ? tags.slice(0, 4) : [] }),
+        ...(color    !== undefined && { color }),
+        ...(original !== undefined && { original }),
+      }),
+    });
 
-  count.textContent = notes.length ? `${notes.length} nota${notes.length > 1 ? 's' : ''}` : '';
-
-  if (!notes.length) {
-    grid.innerHTML = '';
-    empty.style.display = 'block';
-    return;
+    const updated = await dbRes.json();
+    return res.status(200).json(updated[0] || {});
   }
 
-  empty.style.display = 'none';
-  grid.innerHTML = notes.map(n => {
-    const c = COLORS[n.color] || COLORS.blue;
-    const tags = (n.tags || []).map(t =>
-      `<span class="tag" style="background:${c.tagBg};color:${c.tagColor}">${t}</span>`
-    ).join('');
-    const time = n.created_at
-      ? new Date(n.created_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
-      : '';
-    return `<div class="card">
-      <div class="bar" style="background:${c.bar}"></div>
-      <div class="card-head">
-        <span class="card-title">${n.title}</span>
-        <button class="del" onclick="deleteNote('${n.id}')" aria-label="Excluir">✕</button>
-      </div>
-      <p class="card-autor">por ${n.autor || 'Anônimo'}</p>
-      <p class="card-body">${n.summary}</p>
-      <div class="card-foot">
-        <div class="tags">${tags}</div>
-        <span class="time">${time}</span>
-      </div>
-    </div>`;
-  }).join('');
-}
+  if (req.method === 'DELETE') {
+    const { id } = req.query;
+    await fetch(`${SUPA_URL}/rest/v1/notes?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: writeHeaders,
+    });
+    return res.status(200).json({ deleted: true });
+  }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  res.status(405).end();
 }
-
-load();
-setInterval(() => load(), 5000);
-</script>
-</body>
-</html>
