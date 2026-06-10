@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
@@ -45,6 +45,28 @@ export default async function handler(req, res) {
 
     const saved = await dbRes.json();
     return res.status(200).json(saved[0]);
+  }
+
+  if (req.method === 'PATCH') {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'id obrigatório' });
+
+    const { title, summary, tags, color, original } = req.body;
+
+    const dbRes = await fetch(`${SUPA_URL}/rest/v1/notes?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...writeHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({
+        ...(title    !== undefined && { title }),
+        ...(summary  !== undefined && { summary }),
+        ...(tags     !== undefined && { tags: Array.isArray(tags) ? tags.slice(0, 4) : [] }),
+        ...(color    !== undefined && { color }),
+        ...(original !== undefined && { original }),
+      }),
+    });
+
+    const updated = await dbRes.json();
+    return res.status(200).json(updated[0] || {});
   }
 
   if (req.method === 'DELETE') {
