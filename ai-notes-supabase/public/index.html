@@ -1,82 +1,527 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
-  const SUPA_URL    = process.env.SUPABASE_URL;
-  const SUPA_KEY    = process.env.SUPABASE_ANON_KEY;
-  const SUPA_SECRET = process.env.SUPABASE_SECRET_KEY;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  const readHeaders = {
-    'Content-Type': 'application/json',
-    'apikey': SUPA_KEY,
-    'Authorization': `Bearer ${SUPA_KEY}`,
+  :root {
+    --bg:        #0f0f0e;
+    --surface:   #181816;
+    --surface-2: #1f1f1d;
+    --border:    rgba(255,255,255,0.07);
+    --border-md: rgba(255,255,255,0.12);
+    --text-1:    #f0ede8;
+    --text-2:    #9b9890;
+    --text-3:    #5a5854;
+    --accent:    #4f7ef8;
+    --accent-dim:#1c2e5e;
+    --green:     #1d9e75;
+    --red:       #e05c5c;
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --sidebar: 300px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text-1);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(15,15,14,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .logo { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500; color: var(--text-1); }
+  .logo span { color: var(--accent); }
+  .version { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 99px; background: var(--accent-dim); color: var(--accent); margin-left: 8px; }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .live-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  #count { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+
+  .layout { display: flex; flex: 1; min-height: 0; }
+
+  .sidebar {
+    width: var(--sidebar); flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    padding: 1.5rem;
+    position: sticky; top: 56px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .sidebar-title { font-size: 11px; font-weight: 600; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 11px; font-weight: 500; color: var(--text-3); letter-spacing: 0.04em; }
+
+  input, textarea, select {
+    font-family: 'Inter', sans-serif; font-size: 13px;
+    padding: 9px 11px;
+    background: var(--surface-2); color: var(--text-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md); outline: none;
+    transition: border-color .15s, box-shadow .15s; width: 100%;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,126,248,0.12);
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-3); }
+  textarea { min-height: 90px; resize: vertical; line-height: 1.6; }
+
+  .color-preview { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+  .color-btn { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .15s, border-color .15s; flex-shrink: 0; background: none; }
+  .color-btn:hover { transform: scale(1.15); }
+  .color-btn.active { border-color: white; }
+
+  .save-btn {
+    width: 100%; padding: 11px;
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+    color: white; background: var(--accent); border: none;
+    border-radius: var(--r-md); cursor: pointer;
+    transition: opacity .15s, transform .1s; margin-top: 4px;
+  }
+  .save-btn:hover { opacity: 0.88; }
+  .save-btn:active { transform: scale(0.98); }
+  .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+  .main { flex: 1; padding: 1.75rem 2rem; overflow-y: auto; }
+  .main-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .main-title { font-size: 13px; font-weight: 500; color: var(--text-2); }
+  .hint { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+
+  /* ── CARD MODO VISUALIZAÇÃO ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 1rem 1.1rem;
+    animation: up .2s ease;
+    transition: border-color .15s, transform .15s;
+    cursor: pointer;
+  }
+  .card:hover { border-color: var(--border-md); transform: translateY(-1px); }
+  .card.editing { border-color: var(--accent); cursor: default; transform: none; }
+
+  @keyframes up { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .card-color-bar { width: 3px; border-radius: 99px; flex-shrink: 0; align-self: stretch; min-height: 36px; }
+  .card-meta { flex: 1; min-width: 0; }
+  .card-title { font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--text-1); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-autor { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+  .card-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+  .card:hover .card-actions { opacity: 1; }
+  .card.editing .card-actions { opacity: 1; }
+
+  .btn-icon {
+    background: none; border: none; cursor: pointer;
+    font-size: 12px; padding: 3px 5px; border-radius: 5px;
+    transition: background .15s, color .15s; color: var(--text-3);
+  }
+  .btn-icon:hover { background: rgba(255,255,255,0.08); color: var(--text-1); }
+  .btn-icon.del:hover { color: var(--red); }
+
+  .card-body { font-size: 12px; color: var(--text-2); line-height: 1.65; margin-bottom: 10px; }
+  .card-foot { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+  .time { font-size: 10px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+
+  /* ── CARD MODO EDIÇÃO ── */
+  .card-edit { display: flex; flex-direction: column; gap: 8px; }
+  .card-edit input, .card-edit textarea {
+    font-size: 12px; padding: 7px 9px;
+    background: rgba(255,255,255,0.05);
+  }
+  .card-edit textarea { min-height: 70px; }
+
+  .edit-color-picker { display: flex; gap: 5px; flex-wrap: wrap; }
+  .edit-color-btn { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .12s; background: none; }
+  .edit-color-btn:hover { transform: scale(1.2); }
+  .edit-color-btn.active { border-color: white; }
+
+  .edit-actions { display: flex; gap: 6px; margin-top: 2px; }
+  .btn-confirm {
+    flex: 1; padding: 7px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+    color: white; background: var(--accent); border: none; border-radius: var(--r-sm);
+    cursor: pointer; transition: opacity .15s;
+  }
+  .btn-confirm:hover { opacity: 0.85; }
+  .btn-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-cancel {
+    padding: 7px 12px; font-family: 'Inter', sans-serif; font-size: 12px;
+    color: var(--text-2); background: none;
+    border: 1px solid var(--border-md); border-radius: var(--r-sm);
+    cursor: pointer; transition: background .15s;
+  }
+  .btn-cancel:hover { background: rgba(255,255,255,0.05); }
+
+  .loading-card {
+    background: var(--surface); border: 1px dashed var(--border-md);
+    border-radius: var(--r-lg); padding: 1rem 1.1rem;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-3);
+  }
+  .spinner { width: 12px; height: 12px; border: 1.5px solid var(--border-md); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  .empty { grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-3); font-size: 13px; }
+
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    background: var(--surface-2); border: 1px solid var(--border-md);
+    color: var(--text-1); font-size: 12px; padding: 9px 15px;
+    border-radius: var(--r-md); opacity: 0; transform: translateY(8px);
+    transition: opacity .2s, transform .2s; pointer-events: none; z-index: 99;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 700px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .header { padding: 0 1rem; }
+    .main { padding: 1.25rem 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div style="display:flex;align-items:center">
+    <span class="logo">ai<span>.</span>notes</span>
+    <span class="version">v1.0</span>
+  </div>
+  <div class="header-right">
+    <span class="live-badge"><span class="live-dot"></span>ao vivo</span>
+    <span id="count"></span>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">Nova nota</p>
+
+    <div class="field">
+      <label>Título</label>
+      <input id="f-title" type="text" placeholder="Título da nota" />
+    </div>
+    <div class="field">
+      <label>Seu nome</label>
+      <input id="f-autor" type="text" placeholder="Anônimo" />
+    </div>
+    <div class="field">
+      <label>Conteúdo</label>
+      <textarea id="f-content" placeholder="Escreva o conteúdo..."></textarea>
+    </div>
+    <div class="field">
+      <label>Tags (separadas por vírgula)</label>
+      <input id="f-tags" type="text" placeholder="ex: reunião, urgente, bi" />
+    </div>
+    <div class="field">
+      <label>Cor</label>
+      <div class="color-preview" id="color-picker"></div>
+      <input type="hidden" id="f-color" value="blue" />
+    </div>
+    <div class="divider"></div>
+    <button class="save-btn" id="save-btn" onclick="addNote()">Salvar nota</button>
+  </aside>
+
+  <main class="main">
+    <div class="main-header">
+      <span class="main-title" id="main-title">Carregando...</span>
+      <span class="hint">clique em um card para editar</span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLORS = {
+  blue:   { bar:'#4f7ef8', tagBg:'rgba(79,126,248,0.15)',  tagColor:'#7da4fb' },
+  teal:   { bar:'#1d9e75', tagBg:'rgba(29,158,117,0.15)',  tagColor:'#2dc994' },
+  amber:  { bar:'#e09f3e', tagBg:'rgba(224,159,62,0.15)',  tagColor:'#f0bc65' },
+  coral:  { bar:'#e05c5c', tagBg:'rgba(224,92,92,0.15)',   tagColor:'#f07878' },
+  purple: { bar:'#8b5cf6', tagBg:'rgba(139,92,246,0.15)',  tagColor:'#a78bf8' },
+  pink:   { bar:'#e879a0', tagBg:'rgba(232,121,160,0.15)', tagColor:'#f09dbe' },
+  green:  { bar:'#65a30d', tagBg:'rgba(101,163,13,0.15)',  tagColor:'#84cc16' },
+};
+
+let notes = [];
+let selectedColor = 'blue';
+let editingId = null;
+
+// Color picker sidebar
+const picker = document.getElementById('color-picker');
+Object.entries(COLORS).forEach(([key, c]) => {
+  const btn = document.createElement('button');
+  btn.className = 'color-btn' + (key === 'blue' ? ' active' : '');
+  btn.style.background = c.bar;
+  btn.title = key;
+  btn.onclick = () => {
+    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedColor = key;
   };
+  picker.appendChild(btn);
+});
 
-  const writeHeaders = {
-    'Content-Type': 'application/json',
-    'apikey': SUPA_SECRET,
-    'Authorization': `Bearer ${SUPA_SECRET}`,
-  };
+// Autor localStorage
+const autorInput = document.getElementById('f-autor');
+autorInput.value = localStorage.getItem('notes-autor') || '';
+autorInput.addEventListener('change', () => localStorage.setItem('notes-autor', autorInput.value));
 
-  if (req.method === 'GET') {
-    const r = await fetch(`${SUPA_URL}/rest/v1/notes?order=created_at.desc`, { headers: readHeaders });
-    const data = await r.json();
-    return res.status(200).json(data);
-  }
-
-  if (req.method === 'POST') {
-    const { title, content, tags, color, autor } = req.body;
-    if (!title || !content) return res.status(400).json({ error: 'title e content obrigatórios' });
-
-    const dbRes = await fetch(`${SUPA_URL}/rest/v1/notes`, {
-      method: 'POST',
-      headers: { ...writeHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        title:    title.trim(),
-        summary:  content.trim(),
-        tags:     Array.isArray(tags) ? tags.slice(0, 4) : [],
-        color:    color || 'blue',
-        original: content.trim(),
-        autor:    autor || 'Anônimo',
-      }),
-    });
-
-    const saved = await dbRes.json();
-    return res.status(200).json(saved[0]);
-  }
-
-  if (req.method === 'PATCH') {
-    const { id } = req.query;
-    if (!id) return res.status(400).json({ error: 'id obrigatório' });
-
-    const { title, summary, tags, color, original } = req.body;
-
-    const dbRes = await fetch(`${SUPA_URL}/rest/v1/notes?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...writeHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        ...(title    !== undefined && { title }),
-        ...(summary  !== undefined && { summary }),
-        ...(tags     !== undefined && { tags: Array.isArray(tags) ? tags.slice(0, 4) : [] }),
-        ...(color    !== undefined && { color }),
-        ...(original !== undefined && { original }),
-      }),
-    });
-
-    const updated = await dbRes.json();
-    return res.status(200).json(updated[0] || {});
-  }
-
-  if (req.method === 'DELETE') {
-    const { id } = req.query;
-    await fetch(`${SUPA_URL}/rest/v1/notes?id=eq.${id}`, {
-      method: 'DELETE',
-      headers: writeHeaders,
-    });
-    return res.status(200).json({ deleted: true });
-  }
-
-  res.status(405).end();
+async function load(silent = false) {
+  try {
+    const r = await fetch('/api/note');
+    const fresh = await r.json();
+    if (JSON.stringify(fresh) !== JSON.stringify(notes)) {
+      const wasEditing = editingId;
+      notes = fresh;
+      if (!wasEditing) render();
+    }
+  } catch {}
 }
+
+async function addNote() {
+  const title   = document.getElementById('f-title').value.trim();
+  const content = document.getElementById('f-content').value.trim();
+  const tagsRaw = document.getElementById('f-tags').value.trim();
+  const color   = selectedColor;
+  const autor   = autorInput.value.trim() || 'Anônimo';
+
+  if (!title)   { showToast('preencha o título'); return; }
+  if (!content) { showToast('preencha o conteúdo'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  const grid = document.getElementById('grid');
+  const lc = document.createElement('div');
+  lc.id = 'loading-card'; lc.className = 'loading-card';
+  lc.innerHTML = '<div class="spinner"></div><span>salvando...</span>';
+  grid.prepend(lc);
+
+  try {
+    const r = await fetch('/api/note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content, tags, color, autor }),
+    });
+    const note = await r.json();
+    notes.unshift(note);
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-content').value = '';
+    document.getElementById('f-tags').value = '';
+    showToast('nota salva ✓');
+    render();
+  } catch {
+    showToast('erro ao salvar');
+    document.getElementById('loading-card')?.remove();
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar nota';
+}
+
+async function deleteNote(id, e) {
+  e.stopPropagation();
+  notes = notes.filter(n => n.id !== id);
+  if (editingId === id) editingId = null;
+  render();
+  await fetch(`/api/note?id=${id}`, { method: 'DELETE' });
+  showToast('nota removida');
+}
+
+function startEdit(id, e) {
+  e.stopPropagation();
+  if (editingId === id) return;
+  editingId = id;
+  render();
+  setTimeout(() => {
+    const el = document.getElementById(`edit-title-${id}`);
+    if (el) el.focus();
+  }, 50);
+}
+
+function cancelEdit(e) {
+  e?.stopPropagation();
+  editingId = null;
+  render();
+}
+
+async function saveEdit(id, e) {
+  e?.stopPropagation();
+  const title   = document.getElementById(`edit-title-${id}`).value.trim();
+  const content = document.getElementById(`edit-content-${id}`).value.trim();
+  const tagsRaw = document.getElementById(`edit-tags-${id}`).value.trim();
+  const color   = document.getElementById(`edit-color-${id}`).value;
+
+  if (!title || !content) { showToast('preencha título e conteúdo'); return; }
+
+  const btn = document.getElementById(`edit-confirm-${id}`);
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+  const note = notes.find(n => n.id === id);
+
+  try {
+    const r = await fetch(`/api/note?id=${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, summary: content, tags, color, original: content }),
+    });
+
+    if (r.ok) {
+      const updated = await r.json();
+      const idx = notes.findIndex(n => n.id === id);
+      if (idx !== -1) notes[idx] = { ...notes[idx], ...updated };
+    } else {
+      // fallback: atualiza local mesmo se PATCH não existir ainda
+      const idx = notes.findIndex(n => n.id === id);
+      if (idx !== -1) notes[idx] = { ...notes[idx], title, summary: content, tags, color };
+    }
+
+    editingId = null;
+    showToast('nota atualizada ✓');
+    render();
+  } catch {
+    showToast('erro ao atualizar');
+    btn.disabled = false;
+    btn.textContent = 'Salvar';
+  }
+}
+
+function buildEditColorPicker(noteId, currentColor) {
+  return Object.entries(COLORS).map(([key, c]) =>
+    `<button class="edit-color-btn ${key === currentColor ? 'active' : ''}"
+      style="background:${c.bar}"
+      title="${key}"
+      onclick="selectEditColor('${noteId}','${key}',this);event.stopPropagation()"></button>`
+  ).join('');
+}
+
+function selectEditColor(noteId, color, btn) {
+  document.querySelectorAll(`#edit-color-picker-${noteId} .edit-color-btn`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`edit-color-${noteId}`).value = color;
+}
+
+function render() {
+  const grid  = document.getElementById('grid');
+  const title = document.getElementById('main-title');
+  const count = document.getElementById('count');
+  document.getElementById('loading-card')?.remove();
+
+  const n = notes.length;
+  count.textContent = n ? `${n} nota${n > 1 ? 's' : ''}` : '';
+  title.textContent = n ? `${n} nota${n > 1 ? 's' : ''} salva${n > 1 ? 's' : ''}` : 'Nenhuma nota ainda';
+
+  if (!n) {
+    grid.innerHTML = '<div class="empty">Adicione a primeira nota pelo painel ao lado.</div>';
+    return;
+  }
+
+  grid.innerHTML = notes.map(note => {
+    const c = COLORS[note.color] || COLORS.blue;
+    const time = note.created_at
+      ? new Date(note.created_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+      : '';
+
+    if (editingId === note.id) {
+      // MODO EDIÇÃO
+      const tagsStr = (note.tags || []).join(', ');
+      return `<div class="card editing" id="card-${note.id}">
+        <div class="card-edit">
+          <input id="edit-title-${note.id}" value="${escHtml(note.title)}" placeholder="Título" onclick="event.stopPropagation()" />
+          <textarea id="edit-content-${note.id}" placeholder="Conteúdo" onclick="event.stopPropagation()">${escHtml(note.summary || '')}</textarea>
+          <input id="edit-tags-${note.id}" value="${escHtml(tagsStr)}" placeholder="Tags separadas por vírgula" onclick="event.stopPropagation()" />
+          <div id="edit-color-picker-${note.id}" class="edit-color-picker">
+            ${buildEditColorPicker(note.id, note.color || 'blue')}
+          </div>
+          <input type="hidden" id="edit-color-${note.id}" value="${note.color || 'blue'}" />
+          <div class="edit-actions">
+            <button class="btn-confirm" id="edit-confirm-${note.id}" onclick="saveEdit('${note.id}',event)">Salvar</button>
+            <button class="btn-cancel" onclick="cancelEdit(event)">Cancelar</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // MODO VISUALIZAÇÃO
+    const tags = (note.tags || []).map(t =>
+      `<span class="tag" style="background:${c.tagBg};color:${c.tagColor}">${escHtml(t)}</span>`
+    ).join('');
+
+    return `<div class="card" id="card-${note.id}" onclick="startEdit('${note.id}',event)">
+      <div class="card-top">
+        <div class="card-color-bar" style="background:${c.bar}"></div>
+        <div class="card-meta">
+          <div class="card-title">${escHtml(note.title)}</div>
+          <div class="card-autor">${escHtml(note.autor || 'Anônimo')}</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-icon" onclick="startEdit('${note.id}',event)" title="Editar">✎</button>
+          <button class="btn-icon del" onclick="deleteNote('${note.id}',event)" title="Excluir">✕</button>
+        </div>
+      </div>
+      <p class="card-body">${escHtml(note.summary || '')}</p>
+      <div class="card-foot">
+        <div class="tags">${tags}</div>
+        <span class="time">${time}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && editingId) cancelEdit();
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !editingId) addNote();
+});
+
+load();
+setInterval(() => load(true), 5000);
+</script>
+</body>
+</html>
