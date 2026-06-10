@@ -20,14 +20,12 @@ export default async function handler(req, res) {
     'Authorization': `Bearer ${SUPA_SECRET}`,
   };
 
-  // GET — lista todas as notas
   if (req.method === 'GET') {
     const r = await fetch(`${SUPA_URL}/rest/v1/notes?order=created_at.desc`, { headers: readHeaders });
     const data = await r.json();
     return res.status(200).json(data);
   }
 
-  // POST — salva nota diretamente sem IA
   if (req.method === 'POST') {
     const { title, content, tags, color, autor } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title e content obrigatórios' });
@@ -36,12 +34,12 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { ...writeHeaders, 'Prefer': 'return=representation' },
       body: JSON.stringify({
-        title:   title.trim(),
-        summary: content.trim(),
-        tags:    Array.isArray(tags) ? tags.slice(0, 4) : [],
-        color:   color || 'blue',
+        title:    title.trim(),
+        summary:  content.trim(),
+        tags:     Array.isArray(tags) ? tags.slice(0, 4) : [],
+        color:    color || 'blue',
         original: content.trim(),
-        autor:   autor || 'Anônimo',
+        autor:    autor || 'Anônimo',
       }),
     });
 
@@ -49,7 +47,6 @@ export default async function handler(req, res) {
     return res.status(200).json(saved[0]);
   }
 
-  // DELETE — remove nota por id
   if (req.method === 'DELETE') {
     const { id } = req.query;
     await fetch(`${SUPA_URL}/rest/v1/notes?id=eq.${id}`, {
