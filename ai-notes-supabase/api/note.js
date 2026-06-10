@@ -4,24 +4,32 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
-  const SUPA_URL = process.env.SUPABASE_URL;
-  const SUPA_KEY = process.env.SUPABASE_ANON_KEY;
-  const AI_KEY   = process.env.ANTHROPIC_API_KEY;
+  const SUPA_URL    = process.env.SUPABASE_URL;
+  const SUPA_KEY    = process.env.SUPABASE_ANON_KEY;
+  const SUPA_SECRET = process.env.SUPABASE_SECRET_KEY;
+  const AI_KEY      = process.env.ANTHROPIC_API_KEY;
 
-  const headers = {
+  // Leitura usa a publishable key, escrita usa a secret key
+  const readHeaders = {
     'Content-Type': 'application/json',
-    apikey: SUPA_KEY,
-    Authorization: `Bearer ${SUPA_KEY}`,
+    'apikey': SUPA_KEY,
+    'Authorization': `Bearer ${SUPA_KEY}`,
   };
 
-  // GET /api/note — lista todas as notas
+  const writeHeaders = {
+    'Content-Type': 'application/json',
+    'apikey': SUPA_SECRET,
+    'Authorization': `Bearer ${SUPA_SECRET}`,
+  };
+
+  // GET — lista todas as notas
   if (req.method === 'GET') {
-    const r = await fetch(`${SUPA_URL}/rest/v1/notes?order=created_at.desc`, { headers });
+    const r = await fetch(`${SUPA_URL}/rest/v1/notes?order=created_at.desc`, { headers: readHeaders });
     const data = await r.json();
     return res.status(200).json(data);
   }
 
-  // POST /api/note — cria nota via IA
+  // POST — cria nota via IA
   if (req.method === 'POST') {
     const { text, autor } = req.body;
     if (!text) return res.status(400).json({ error: 'text obrigatório' });
@@ -52,7 +60,7 @@ Conteúdo: ${text}`,
 
     const dbRes = await fetch(`${SUPA_URL}/rest/v1/notes`, {
       method: 'POST',
-      headers: { ...headers, Prefer: 'return=representation' },
+      headers: { ...writeHeaders, 'Prefer': 'return=representation' },
       body: JSON.stringify({
         title:    parsed.title   || 'Nota',
         summary:  parsed.summary || text,
@@ -67,12 +75,12 @@ Conteúdo: ${text}`,
     return res.status(200).json(saved[0]);
   }
 
-  // DELETE /api/note?id=xxx
+  // DELETE — remove nota por id
   if (req.method === 'DELETE') {
     const { id } = req.query;
     await fetch(`${SUPA_URL}/rest/v1/notes?id=eq.${id}`, {
       method: 'DELETE',
-      headers,
+      headers: writeHeaders,
     });
     return res.status(200).json({ deleted: true });
   }

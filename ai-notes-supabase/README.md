@@ -1,69 +1,45 @@
-# AI Notes — compartilhado
+# AI Notes v2
 
 Notas com IA, banco central no Supabase. Qualquer pessoa com o link vê as mesmas notas em tempo real.
 
-## Funcionalidades
+## Variáveis de ambiente (configurar na Vercel)
 
-- IA organiza cada nota com título, resumo, tags e cor
-- Campo de autor — cada nota mostra quem enviou
-- Atualização automática a cada 5 segundos para todos os usuários
-- Botão "Resumir" gera relatório executivo agrupado por autor e tema
-- Dark mode automático
-
-## Estrutura
-
-```
-ai-notes-supabase/
-├── api/
-│   ├── note.js          # CRUD de notas (GET, POST, DELETE)
-│   └── report.js        # Relatório executivo via IA
-├── public/
-│   └── index.html       # Frontend completo
-├── supabase-setup.sql   # Cria a tabela no Supabase
-├── vercel.json          # Config de deploy
-└── .gitignore
-```
+| Nome | Onde pegar |
+|------|------------|
+| `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys |
+| `SUPABASE_URL` | Supabase → Settings → API → Project URL |
+| `SUPABASE_ANON_KEY` | Supabase → Settings → API Keys → Publishable key |
+| `SUPABASE_SECRET_KEY` | Supabase → Settings → API Keys → Secret key |
 
 ## Deploy
 
 ### 1. Suba no GitHub
 
 ```bash
-git init
 git add .
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/SEU_USUARIO/ai-notes-supabase.git
-git push -u origin main
+git commit -m "update"
+git push
 ```
 
 ### 2. Configure o Supabase
 
-1. Crie um projeto em [supabase.com](https://supabase.com)
-2. Vá em **SQL Editor** e execute o conteúdo de `supabase-setup.sql`
-3. Copie os valores em **Settings → API**:
-   - `Project URL` → `SUPABASE_URL`
-   - `anon public` → `SUPABASE_ANON_KEY`
+Execute o `supabase-setup.sql` no SQL Editor do Supabase.
 
 ### 3. Deploy na Vercel
 
-1. Acesse [vercel.com](https://vercel.com) → **Add New Project**
-2. Conecte o repositório do GitHub
-3. Adicione as variáveis de ambiente em **Settings → Environment Variables**:
+1. Acesse vercel.com → Add New Project → conecte o repositório
+2. Adicione as 4 variáveis de ambiente acima
+3. Clique em Deploy
 
-| Nome | Valor |
-|------|-------|
-| `ANTHROPIC_API_KEY` | `sk-ant-...` |
-| `SUPABASE_URL` | `https://xxxx.supabase.co` |
-| `SUPABASE_ANON_KEY` | `eyJ...` |
+## Estrutura
 
-4. Clique em **Deploy**
-
-A URL gerada pela Vercel é o link para compartilhar com todos.
-
-## Como usar
-
-- Acesse o link da Vercel
-- Digite seu nome no campo "Seu nome"
-- Cole ou escreva a informação e pressione `Ctrl+Enter`
-- Todos que tiverem o link verão a nota em até 5 segundos
+```
+ai-notes-v2/
+├── api/
+│   ├── note.js       # CRUD de notas
+│   └── report.js     # Relatório executivo
+├── public/
+│   └── index.html    # Frontend
+├── supabase-setup.sql
+└── vercel.json
+```

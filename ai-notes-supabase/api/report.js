@@ -10,7 +10,10 @@ export default async function handler(req, res) {
   const AI_KEY   = process.env.ANTHROPIC_API_KEY;
 
   const r = await fetch(`${SUPA_URL}/rest/v1/notes?order=created_at.desc`, {
-    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${SUPA_KEY}`,
+    },
   });
   const notes = await r.json();
 
