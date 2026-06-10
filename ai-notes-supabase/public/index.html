@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Notes</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f8f6;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --border-md: rgba(0,0,0,0.14);
+    --text-1: #1a1a18;
+    --text-2: #6b6b66;
+    --text-3: #a0a09a;
+    --r-md: 8px;
+    --r-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412;
+      --surface: #1e1e1b;
+      --border: rgba(255,255,255,0.08);
+      --border-md: rgba(255,255,255,0.15);
+      --text-1: #f0f0ec;
+      --text-2: #a0a09a;
+      --text-3: #5a5a54;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text-1);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  header h1 { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
+
+  .toolbar { display: flex; align-items: center; gap: 8px; }
+  #count { font-size: 12px; color: var(--text-3); }
+
+  .input-area {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 1.75rem;
+  }
+
+  .input-area textarea {
+    grid-column: 1 / -1;
+    min-height: 76px;
+    resize: vertical;
+  }
+
+  input, textarea {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 10px 12px;
+    background: var(--surface);
+    color: var(--text-1);
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--r-md);
+    outline: none;
+    transition: border-color .15s;
+    width: 100%;
+  }
+  input:focus, textarea:focus { border-color: var(--text-3); }
+  input::placeholder, textarea::placeholder { color: var(--text-3); }
+  input:disabled, textarea:disabled { opacity: .5; }
+
+  #add-btn {
+    padding: 10px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-1);
+    background: var(--surface);
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+    grid-column: 2;
+  }
+  #add-btn:hover { background: var(--bg); }
+  #add-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  #report-btn {
+    padding: 7px 13px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text-2);
+    background: none;
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #report-btn:hover { background: var(--surface); }
+  #report-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .sync-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #1D9E75;
+    display: inline-block;
+    margin-right: 4px;
+  }
+  .sync-label { font-size: 11px; color: var(--text-3); display: flex; align-items: center; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: .95rem 1.05rem;
+    animation: up .22s ease;
+  }
+
+  @keyframes up {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .bar { height: 3px; border-radius: 99px; margin-bottom: 9px; }
+
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .card-title { font-size: 13px; font-weight: 500; line-height: 1.4; }
+
+  .del {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-3); font-size: 13px; padding: 0;
+    opacity: .55; transition: opacity .15s; flex-shrink: 0;
+  }
+  .del:hover { opacity: 1; }
+
+  .card-autor {
+    font-size: 11px;
+    color: var(--text-3);
+    margin-bottom: 6px;
+  }
+
+  .card-body {
+    font-size: 12px;
+    color: var(--text-2);
+    line-height: 1.65;
+    margin-bottom: 9px;
+  }
+
+  .card-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .tags { display: flex; gap: 3px; flex-wrap: wrap; }
+
+  .tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-weight: 500;
+  }
+
+  .time { font-size: 10px; color: var(--text-3); }
+
+  .loading-card {
+    background: var(--surface);
+    border: 0.5px dashed var(--border-md);
+    border-radius: var(--r-lg);
+    padding: .95rem 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+
+  .spinner {
+    width: 12px; height: 12px;
+    border: 1.5px solid var(--border-md);
+    border-top-color: var(--text-2);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+
+  #report-box {
+    background: var(--surface);
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--r-lg);
+    padding: 1rem 1.15rem;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-1);
+    margin-top: 1.5rem;
+    white-space: pre-wrap;
+    display: none;
+  }
+
+  .report-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: .75rem;
+  }
+  .report-head span { font-size: 12px; font-weight: 500; }
+
+  .close-report {
+    background: none; border: none;
+    cursor: pointer; font-size: 13px;
+    color: var(--text-3); opacity: .6;
+  }
+  .close-report:hover { opacity: 1; }
+
+  .toast {
+    position: fixed;
+    bottom: 1.25rem; right: 1.25rem;
+    background: var(--text-1);
+    color: var(--bg);
+    font-size: 12px;
+    padding: 7px 13px;
+    border-radius: var(--r-md);
+    opacity: 0;
+    transition: opacity .2s;
+    pointer-events: none;
+    z-index: 99;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>AI Notes</h1>
+    <div class="toolbar">
+      <span class="sync-label"><span class="sync-dot"></span>ao vivo</span>
+      <span id="count"></span>
+      <button id="report-btn" onclick="generateReport()">Resumir ↗</button>
+    </div>
+  </header>
+
+  <div class="input-area">
+    <textarea id="inp" placeholder="Cole ou escreva qualquer informação — reunião, tarefa, dado, ideia... (Ctrl+Enter para salvar)"></textarea>
+    <input id="autor" type="text" placeholder="Seu nome (opcional)" />
+    <button id="add-btn" onclick="addNote()">+ Adicionar</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">Nenhuma nota ainda. Adicione a primeira.</div>
+
+  <div id="report-box">
+    <div class="report-head">
+      <span>Resumo das notas</span>
+      <button class="close-report" onclick="closeReport()">✕</button>
+    </div>
+    <div id="report-content"></div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const COLORS = {
+  blue:   { bar:'#378ADD', tagBg:'#E6F1FB', tagColor:'#0C447C' },
+  teal:   { bar:'#1D9E75', tagBg:'#E1F5EE', tagColor:'#085041' },
+  amber:  { bar:'#BA7517', tagBg:'#FAEEDA', tagColor:'#633806' },
+  coral:  { bar:'#D85A30', tagBg:'#FAECE7', tagColor:'#4A1B0C' },
+  purple: { bar:'#534AB7', tagBg:'#EEEDFE', tagColor:'#26215C' },
+  pink:   { bar:'#D4537E', tagBg:'#FBEAF0', tagColor:'#4B1528' },
+  green:  { bar:'#639922', tagBg:'#EAF3DE', tagColor:'#173404' },
+};
+
+let notes = [];
+let pollInterval;
+
+// Salva nome do autor no localStorage
+const autorInput = document.getElementById('autor');
+autorInput.value = localStorage.getItem('ai-notes-autor') || '';
+autorInput.addEventListener('change', () => localStorage.setItem('ai-notes-autor', autorInput.value));
+
+async function load(silent = false) {
+  try {
+    const r = await fetch('/api/note');
+    const fresh = await r.json();
+    if (JSON.stringify(fresh) !== JSON.stringify(notes)) {
+      notes = fresh;
+      render();
+      if (!silent) return;
+    }
+  } catch {}
+}
+
+// Atualiza a cada 5 segundos para todos verem novas notas em tempo real
+function startPolling() {
+  pollInterval = setInterval(() => load(true), 5000);
+}
+
+async function addNote() {
+  const inp  = document.getElementById('inp');
+  const btn  = document.getElementById('add-btn');
+  const text = inp.value.trim();
+  const autor = autorInput.value.trim() || 'Anônimo';
+  if (!text) return;
+
+  btn.disabled = true;
+  inp.disabled = true;
+  addLoadingCard();
+
+  try {
+    const r = await fetch('/api/note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, autor }),
+    });
+    const note = await r.json();
+    notes.unshift(note);
+    inp.value = '';
+    showToast('Nota salva');
+  } catch {
+    showToast('Erro ao salvar');
+  }
+
+  removeLoadingCard();
+  btn.disabled = false;
+  inp.disabled = false;
+  inp.focus();
+  render();
+}
+
+async function deleteNote(id) {
+  notes = notes.filter(n => n.id !== id);
+  render();
+  await fetch(`/api/note?id=${id}`, { method: 'DELETE' });
+  showToast('Nota removida');
+}
+
+async function generateReport() {
+  if (!notes.length) { showToast('Nenhuma nota para resumir'); return; }
+  const btn = document.getElementById('report-btn');
+  const box = document.getElementById('report-box');
+  const content = document.getElementById('report-content');
+
+  btn.disabled = true;
+  content.textContent = 'Gerando resumo...';
+  box.style.display = 'block';
+
+  try {
+    const r = await fetch('/api/report', { method: 'POST' });
+    const data = await r.json();
+    content.textContent = data.text;
+  } catch {
+    content.textContent = 'Erro ao gerar resumo.';
+  }
+
+  btn.disabled = false;
+}
+
+function closeReport() {
+  document.getElementById('report-box').style.display = 'none';
+}
+
+function addLoadingCard() {
+  const grid = document.getElementById('grid');
+  const el = document.createElement('div');
+  el.id = 'loading-card';
+  el.className = 'loading-card';
+  el.innerHTML = '<div class="spinner"></div><span>IA processando...</span>';
+  grid.prepend(el);
+  document.getElementById('empty').style.display = 'none';
+}
+
+function removeLoadingCard() {
+  document.getElementById('loading-card')?.remove();
+}
+
+function render() {
+  const grid  = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  const count = document.getElementById('count');
+  const loading = grid.querySelector('#loading-card')?.outerHTML || '';
+
+  count.textContent = notes.length ? `${notes.length} nota${notes.length > 1 ? 's' : ''}` : '';
+
+  if (!notes.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  grid.innerHTML = loading + notes.map(n => {
+    const c = COLORS[n.color] || COLORS.blue;
+    const tags = (n.tags || []).map(t =>
+      `<span class="tag" style="background:${c.tagBg};color:${c.tagColor}">${t}</span>`
+    ).join('');
+    const time = n.created_at
+      ? new Date(n.created_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+      : '';
+    return `<div class="card">
+      <div class="bar" style="background:${c.bar}"></div>
+      <div class="card-head">
+        <span class="card-title">${n.title}</span>
+        <button class="del" onclick="deleteNote('${n.id}')" aria-label="Excluir">✕</button>
+      </div>
+      <p class="card-autor">por ${n.autor || 'Anônimo'}</p>
+      <p class="card-body">${n.summary}</p>
+      <div class="card-foot">
+        <div class="tags">${tags}</div>
+        <span class="time">${time}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+document.getElementById('inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addNote();
+});
+
+load();
+startPolling();
+</script>
+</body>
+</html>
